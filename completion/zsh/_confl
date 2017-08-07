@@ -1,0 +1,16 @@
+#compdef ecli
+
+subcommands=(
+  "help: Show this help."
+  "info: Print information the page having given PAGE_ID."
+  "get: Print html of the page having given PAGE_ID."
+  "create: Create new page, standard input will be page body."
+  "update: Update the page, standard input will be page body."
+)
+
+function _ecli()
+{
+    if (( CURRENT==2 )) ; then
+        _describe -t subcommands 'subcommands' subcommands
+    fi
+}

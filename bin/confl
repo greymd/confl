@@ -1,0 +1,109 @@
+#!/bin/bash
+set -u
+
+CONFL_USER="${CONFL_USER:-your_name_here}"
+CONFL_PASS="${CONFL_PASS:-your_password_here}"
+CONFL_SPACE_KEY="${CONFL_SPACE_KEY:-your_space_here}"
+CONFL_API_END="${CONFL_API_END:-https://example.com/confluence/rest/api/content}"
+
+AUTH_HEADER="Authorization: Basic $(printf "%s" "$CONFL_USER:$CONFL_PASS" | base64)"
+
+usage () {
+  cat <<__EOF__
+Usage:
+  confl [COMMANDS] [argument ...]
+
+COMMANDS:
+  help                            -- Show this help.
+  info <PAGE_ID>                  -- Print information the page having given PAGE_ID.
+  get <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
+  create <PARENT PAGE_ID> <TITLE> -- Create new page, standard input will be page body.
+  update <PARENT PAGE_ID>         -- Update the page, standard input will be page body.
+
+OPTIONS:
+  -f  -- pretty print Html
+__EOF__
+}
+
+# 1. Replace line break to '\n'
+# 2. Replace backslash '\' to '\\'
+# 3. Escape double quotation \"
+encode4confl () {
+  cat \
+    | sed  -e 's/\\/\\\\/g' \
+    | sed -e 's/"/\\"/g' \
+    | od -tx1 -An \
+    | tr -dc 'a-zA-Z0-9' \
+    | sed 's/0a/5c6e/g' \
+    | perl -nle 'print pack("H*", $_)'
+}
+
+confl-info () {
+  local _page_id="${1}"; shift
+  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/$_page_id"
+}
+
+confl-get () {
+  local _page_id="${1}"; shift
+  local _pp="${1-}"
+  local _parser=cat
+  if [[ "$_pp" =~ f ]]; then
+    _parser='xmllint --format --encode UTF-8 -'
+  fi
+  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/$_page_id?expand=body.view" \
+    | jq -r '.body.view.value' \
+    | $_parser
+}
+
+confl-create () {
+  local _page_id="$1"; shift
+  local _title="$1"; shift
+  curl -so- -H "$AUTH_HEADER" \
+    -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{"type":"page","title":"'"$_title"'","ancestors":[{"id":'"$_page_id"'}],"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | encode4confl)"'","representation":"storage"}}}' "$CONFL_API_END" \
+  | jq .
+}
+
+confl-update () {
+  local _page_id="$1"; shift
+  local _arr=()
+
+  while read e;
+  do
+    _arr=("${_arr[@]}" "$e")
+  done < <(confl-info "$_page_id" | jq -r '.title,.version.number')
+  local _title="${_arr[0]}"
+  local _version_num="${_arr[1]}"
+  _version_num=$(($_version_num + 1))
+
+  curl -so- -H "$AUTH_HEADER" \
+    -X PUT \
+    -H 'Content-Type: application/json' \
+    -d '{"type":"page","title":"'"$_title"'","id":'"$_page_id"',"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | encode4confl)"'","representation":"storage"}},"version":{"number":'"$_version_num"'}}}' "$CONFL_API_END/$_page_id" \
+  | jq .
+}
+
+CMD="${1-}"
+shift
+case "$CMD" in
+  get)
+    confl-get "$@"
+    ;;
+  info)
+    confl-info "$@"
+    ;;
+  create)
+    confl-create "$@"
+    ;;
+  update)
+    confl-update "$@"
+    ;;
+  --help|help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage
+    exit 1
+esac
