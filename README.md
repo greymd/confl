@@ -4,18 +4,19 @@ Simple Confluence CLI client.
 
 # Installation
 
-```
+```sh
 antigen bundle "greymd/confl"
 ```
 
 # Dependencies
-[jq](https://stedolan.github.io/jq/) command is required.
+ * [jq](https://stedolan.github.io/jq/) command is required.
+ * xmllint command is required.
 
 # Setup
 
 Set following environment variables on your `~/.bashrc` or `~/.zshrc`.
 
-```
+```sh
 # Username of the confluence. (i.e: taro.yamada)
 export CONFL_USER=XXX
 
@@ -31,7 +32,7 @@ export CONFL_API_END=XXX"
 
 # Usage
 
-```
+```sh
 $ ./confl
 Usage:
   confl [COMMANDS] [argument ...]
@@ -51,3 +52,6 @@ OPTIONS:
 
 * How to get PAGE_ID?
   + See https://confluence.atlassian.com/confkb/how-to-get-confluence-page-id-648380445.html
+
+# LICENSE
+MIT
