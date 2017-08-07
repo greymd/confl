@@ -24,10 +24,10 @@ export CONFL_USER=XXX
 export CONFL_PASS=XXX
 
 # Space name of your team.
-export CONFL_SPACE_KEY=XXX"
+export CONFL_SPACE_KEY=XXX
 
-# API endpoint of your Confluence
-export CONFL_API_END=XXX"
+# API endpoint of your Confluence (i.e: https://localhost:8080/confluence/rest/api/content)
+export CONFL_API_END=XXX
 ```
 
 # Usage
