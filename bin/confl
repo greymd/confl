@@ -65,9 +65,17 @@ _confl_urlenc () {
 _confl-title2id () {
   local _query="$1"
   _query="$(echo "$_query" | _confl_urlenc)"
-  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/search?cql=space=$CONFL_SPACE_KEY%20and%20title=%22$_query%22" \
-    | jq -r '.results[] | .id' \
-    | head -n 1
+  local _ids="$(curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/search?cql=space=$CONFL_SPACE_KEY%20and%20title=%22$_query%22%20and%20type=page" | jq -r '.results[] | .id')"
+  local _num="$(echo "$_ids" | grep -c .)"
+  if [ $_num -eq 1 ]; then
+    echo "$_ids"
+  elif [ $_num -eq 0 ];then
+    echo "error: Page '$_query' not found." >&2
+    exit 1
+  else
+    echo "error: Multiple candidates[ $_ids ]." >&2
+    exit 1
+  fi
 }
 
 confl-info () {
