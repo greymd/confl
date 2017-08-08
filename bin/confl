@@ -83,7 +83,7 @@ confl-mv () {
   local _arr=()
   while read e;
   do
-    _arr=("${_arr[@]}" "$e")
+    _arr+=("$e")
   done < <(confl-info "$_page_id" | jq -r '.title,.version.number')
   local _title="${_arr[0]}"
   local _version_num="${_arr[1]}"
@@ -142,12 +142,10 @@ confl-create () {
 
 confl-update () {
   local _page_id="$(_confl_check_id "$1")"; shift
-  # local _page_id="$1"; shift
   local _arr=()
-
   while read e;
   do
-    _arr=("${_arr[@]}" "$e")
+    _arr+=("$e")
   done < <(confl-info "$_page_id" | jq -r '.title,.version.number')
   local _title="${_arr[0]}"
   local _version_num="${_arr[1]}"
