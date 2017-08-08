@@ -16,9 +16,14 @@ Usage:
 COMMANDS:
   help                            -- Show this help.
   info <PAGE_ID>                  -- Print information the page having given PAGE_ID.
-  get <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
+  cat <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
+  ls <PAGE_ID>                    -- Show child pages under the page.
+  rm  <PAGE_ID>                   -- Remove the page.
   create <PARENT PAGE_ID> <TITLE> -- Create new page, standard input will be page body.
   update <PARENT PAGE_ID>         -- Update the page, standard input will be page body.
+
+PAGE_ID:
+  Unique numeric ID or title of the page.
 
 OPTIONS:
   -f  -- pretty print Html
@@ -28,7 +33,7 @@ __EOF__
 # 1. Replace line break to '\n'
 # 2. Replace backslash '\' to '\\'
 # 3. Escape double quotation \"
-encode4confl () {
+_confl_encode4confl () {
   cat \
     | sed  -e 's/\\/\\\\/g' \
     | sed -e 's/"/\\"/g' \
@@ -38,13 +43,53 @@ encode4confl () {
     | perl -nle 'print pack("H*", $_)'
 }
 
-confl-info () {
-  local _page_id="${1}"; shift
-  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/$_page_id"
+_confl_check_id () {
+  local _id="$1"
+  echo "$_id" \
+    | grep -E '^[0-9]+$'
+  if [ $? -eq 0 ]; then
+    echo "$_id"
+  else
+    _confl-title2id "$_id"
+  fi
 }
 
-confl-get () {
-  local _page_id="${1}"; shift
+_confl_urlenc () {
+  tr -d '\r\n' \
+    | od -An -tx1 \
+    | awk 'NF{OFS="%";$1=$1;print "%"$0}' \
+    | tr '[:lower:]' '[:upper:]' \
+    | tr -d '\r\n'
+}
+
+_confl-title2id () {
+  local _query="$1"
+  _query="$(echo "$_query" | _confl_urlenc)"
+  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/search?cql=space=$CONFL_SPACE_KEY%20and%20title=%22$_query%22" \
+    | jq -r '.results[] | .id' \
+    | head -n 1
+}
+
+confl-info () {
+  local _page_id="$(_confl_check_id "$1")"; shift
+  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/$_page_id" \
+    | jq .
+}
+
+confl-rm () {
+  local _page_id="$(_confl_check_id "$1")"; shift
+  curl -so- -H "$AUTH_HEADER" -X DELETE -L "$CONFL_API_END/$_page_id" \
+    | jq .
+}
+
+confl-ls () {
+  local _page_id="$(_confl_check_id "$1")"; shift
+  curl -so- -H "$AUTH_HEADER" -X GET -L "$CONFL_API_END/$_page_id/child/page" \
+    | jq -r '.results[]| .id + "\t" + .title'
+}
+
+confl-cat () {
+  local _page_id="$(_confl_check_id "$1")"; shift
   local _pp="${1-}"
   local _parser=cat
   if [[ "$_pp" =~ f ]]; then
@@ -56,17 +101,18 @@ confl-get () {
 }
 
 confl-create () {
-  local _page_id="$1"; shift
+  local _page_id="$(_confl_check_id "$1")"; shift
   local _title="$1"; shift
   curl -so- -H "$AUTH_HEADER" \
     -X POST \
     -H 'Content-Type: application/json' \
-    -d '{"type":"page","title":"'"$_title"'","ancestors":[{"id":'"$_page_id"'}],"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | encode4confl)"'","representation":"storage"}}}' "$CONFL_API_END" \
+    -d '{"type":"page","title":"'"$_title"'","ancestors":[{"id":'"$_page_id"'}],"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | _confl_encode4confl)"'","representation":"storage"}}}' "$CONFL_API_END" \
   | jq .
 }
 
 confl-update () {
-  local _page_id="$1"; shift
+  local _page_id="$(_confl_check_id "$1")"; shift
+  # local _page_id="$1"; shift
   local _arr=()
 
   while read e;
@@ -80,15 +126,21 @@ confl-update () {
   curl -so- -H "$AUTH_HEADER" \
     -X PUT \
     -H 'Content-Type: application/json' \
-    -d '{"type":"page","title":"'"$_title"'","id":'"$_page_id"',"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | encode4confl)"'","representation":"storage"}},"version":{"number":'"$_version_num"'}}}' "$CONFL_API_END/$_page_id" \
+    -d '{"type":"page","title":"'"$_title"'","id":'"$_page_id"',"space":{"key":"'"$CONFL_SPACE_KEY"'"},"body":{"storage":{"value":"'"$(cat | _confl_encode4confl)"'","representation":"storage"}},"version":{"number":'"$_version_num"'}}}' "$CONFL_API_END/$_page_id" \
   | jq .
 }
 
 CMD="${1-}"
 shift
 case "$CMD" in
-  get)
-    confl-get "$@"
+  cat)
+    confl-cat "$@"
+    ;;
+  ls)
+    confl-ls "$@"
+    ;;
+  rm)
+    confl-rm "$@"
     ;;
   info)
     confl-info "$@"

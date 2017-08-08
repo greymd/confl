@@ -40,7 +40,9 @@ Usage:
 COMMANDS:
   help                            -- Show this help.
   info <PAGE_ID>                  -- Print information the page having given PAGE_ID.
-  get <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
+  cat <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
+  ls <PAGE_ID>                    -- Show child pages under the page.
+  rm  <PAGE_ID>                   -- Remove the page.
   create <PARENT PAGE_ID> <TITLE> -- Create new page, standard input will be page body.
   update <PARENT PAGE_ID>         -- Update the page, standard input will be page body.
 
@@ -51,7 +53,7 @@ OPTIONS:
 # FAQ
 
 * How to get PAGE_ID?
-  + See https://confluence.atlassian.com/confkb/how-to-get-confluence-page-id-648380445.html
+  + See https://confluence.atlassian.com/confkb/how-to-cat-confluence-page-id-648380445.html
 
 # LICENSE
 MIT
