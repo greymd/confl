@@ -6,6 +6,7 @@ subcommands=(
   "cat: Print html of the page having given PAGE_ID."
   "ls: Show child pages under the page."
   "rm: Remove the page."
+  "mv: Move the page."
   "create: Create new page, standard input will be page body."
   "update: Update the page, standard input will be page body."
 )

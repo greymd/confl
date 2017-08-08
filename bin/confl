@@ -19,6 +19,7 @@ COMMANDS:
   cat <PAGE_ID> [OPTIONS]         -- Print html of the page having given PAGE_ID.
   ls <PAGE_ID>                    -- Show child pages under the page.
   rm  <PAGE_ID>                   -- Remove the page.
+  mv  <PAGE_ID> <DEST PAGE_ID>    -- Move the page.
   create <PARENT PAGE_ID> <TITLE> -- Create new page, standard input will be page body.
   update <PARENT PAGE_ID>         -- Update the page, standard input will be page body.
 
@@ -45,9 +46,7 @@ _confl_encode4confl () {
 
 _confl_check_id () {
   local _id="$1"
-  echo "$_id" \
-    | grep -E '^[0-9]+$'
-  if [ $? -eq 0 ]; then
+  if [[ "$_id" =~ ^[0-9]+$ ]]; then
     echo "$_id"
   else
     _confl-title2id "$_id"
@@ -76,6 +75,29 @@ _confl-title2id () {
     echo "error: Multiple candidates[ $_ids ]." >&2
     exit 1
   fi
+}
+
+confl-mv () {
+  local _page_id="$(_confl_check_id "$1")"; shift
+  local _page_id_dst="$(_confl_check_id "$1")"; shift
+  local _arr=()
+  while read e;
+  do
+    _arr=("${_arr[@]}" "$e")
+  done < <(confl-info "$_page_id" | jq -r '.title,.version.number')
+  local _title="${_arr[0]}"
+  local _version_num="${_arr[1]}"
+  _version_num=$(($_version_num + 1))
+
+  curl  -so- -H "$AUTH_HEADER" -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"id":'"$_page_id"',"type":"page",
+         "title":"'"$_title"'",
+         "ancestors":[{"id":'"$_page_id_dst"'}],
+         "space":{"key":"'"$CONFL_SPACE_KEY"'"},
+         "version":{"number":'"$_version_num"'}}' \
+    -L "$CONFL_API_END/$_page_id" \
+    | jq .
 }
 
 confl-info () {
@@ -149,6 +171,9 @@ case "$CMD" in
     ;;
   rm)
     confl-rm "$@"
+    ;;
+  mv)
+    confl-mv "$@"
     ;;
   info)
     confl-info "$@"
