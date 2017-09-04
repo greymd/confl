@@ -31,17 +31,14 @@ OPTIONS:
 __EOF__
 }
 
-# 1. Replace line break to '\n'
+# 1. Remove all the line breaks
 # 2. Replace backslash '\' to '\\'
 # 3. Escape double quotation \"
 _confl_encode4confl () {
   cat \
     | sed  -e 's/\\/\\\\/g' \
     | sed -e 's/"/\\"/g' \
-    | od -tx1 -An \
-    | tr -dc 'a-zA-Z0-9' \
-    | sed 's/0a/5c6e/g' \
-    | perl -nle 'print pack("H*", $_)'
+    | tr -d '\r\n'
 }
 
 _confl_check_id () {
